@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a capability, tier, or API that does not exist yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can you not do today? Describe the situation, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: |
+        If this involves a terminal capability, link the protocol documentation.
+        If it involves glyphs, name the Unicode block.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer
+      options:
+        - subcell-caps (capability probe)
+        - subcell-color (Oklab, blending)
+        - subcell-scene (scene graph)
+        - subcell-cov (coverage rasterization)
+        - subcell-blit (glyph tiers)
+        - subcell-px (kitty graphics, sixel)
+        - subcell-chan (underline, overline, strike)
+        - subcell-in (mouse, keyboard)
+        - subcell (facade, widgets)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: degradation
+    attributes:
+      label: How should this degrade?
+      description: |
+        Every feature has to have an answer for terminals that lack it. What
+        happens on a terminal without this capability?
+    validations:
+      required: true

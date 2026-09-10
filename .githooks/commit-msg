@@ -1,0 +1,38 @@
+#!/bin/sh
+# Conventional Commits, and no machine attribution.
+set -eu
+msg_file=$1
+subject=$(head -n1 "$msg_file")
+
+# Ignore merges, fixups and squashes: git generates those subjects itself.
+case "$subject" in
+    "Merge "*|"Revert "*|"fixup!"*|"squash!"*) exit 0 ;;
+esac
+
+fail() {
+    printf '\n\033[31mcommit-msg: %s\033[0m\n\n' "$1" >&2
+    shift
+    [ $# -gt 0 ] && printf '%s\n' "$@" >&2
+    exit 1
+}
+
+if ! printf '%s' "$subject" | grep -Eq '^(feat|fix|chore|docs|perf|refactor|test|build|ci|style)(\([a-z0-9._/-]+\))?!?: .+'; then
+    fail "subject is not a Conventional Commit" \
+         "  got:      $subject" \
+         "  expected: type(scope): summary" \
+         "  types:    feat fix chore docs perf refactor test build ci style"
+fi
+
+if [ "${#subject}" -gt 72 ]; then
+    fail "subject is ${#subject} characters, limit is 72" "  $subject"
+fi
+
+case "$subject" in
+    *.) fail "subject must not end with a period" "  $subject" ;;
+esac
+
+# The work is published under the author's name.
+if grep -Eiq '(co-authored-by:.*(claude|anthropic|copilot|chatgpt|openai|gemini|cursor|codex))|generated with|🤖|co-authored-by: *(claude|ai)' "$msg_file"; then
+    fail "commit message contains machine attribution" \
+         "  Remove co-author trailers and generation footers before committing."
+fi

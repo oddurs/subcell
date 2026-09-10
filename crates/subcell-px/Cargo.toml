@@ -1,0 +1,18 @@
+[package]
+name = "subcell-px"
+description = "Pixel-tier backends: kitty graphics with virtual placement, sixel fallback."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+subcell-caps.workspace = true
+
+[lints]
+workspace = true

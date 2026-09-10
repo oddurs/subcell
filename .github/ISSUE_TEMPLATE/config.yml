@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/oddurs/subcell/security/advisories/new
+    about: Report privately through GitHub Security Advisories, not as an issue.
+  - name: Question or idea
+    url: https://github.com/oddurs/subcell/discussions
+    about: Open-ended discussion belongs here rather than in the issue tracker.

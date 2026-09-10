@@ -1,0 +1,21 @@
+#!/bin/sh
+# The default branch only ever advances through a merged pull request.
+set -eu
+root=$(git rev-parse --show-toplevel)
+
+default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || echo main)
+
+while read -r local_ref _ remote_ref _; do
+    [ -z "${remote_ref:-}" ] && continue
+    case "$remote_ref" in
+        "refs/heads/$default")
+            printf '\n\033[31mpre-push: refusing to push to %s.\033[0m\n' "$default" >&2
+            printf 'Open a pull request instead:  scripts/agent pr\n\n' >&2
+            exit 1
+            ;;
+    esac
+    [ -n "${local_ref:-}" ] || continue
+done
+
+printf 'pre-push: full check\n'
+"$root/scripts/task" check

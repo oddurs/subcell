@@ -1,0 +1,25 @@
+[package]
+name = "subcell"
+description = "Resolution-independent terminal UI renderer that scales from ASCII to true pixels."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+subcell-blit.workspace = true
+subcell-caps.workspace = true
+subcell-chan.workspace = true
+subcell-color.workspace = true
+subcell-cov.workspace = true
+subcell-in.workspace = true
+subcell-px.workspace = true
+subcell-scene.workspace = true
+
+[lints]
+workspace = true

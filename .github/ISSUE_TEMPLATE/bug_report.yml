@@ -1,0 +1,67 @@
+name: Bug report
+description: Something renders wrong, panics, or behaves differently than documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rendering bugs are usually terminal-specific, so the terminal details
+        below matter more than they would in most projects.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: A sextant-tier chart shows a one-cell gap where the curve crosses x = 40.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The smallest code or command that shows it.
+      render: rust
+    validations:
+      required: true
+
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal and version
+      placeholder: ghostty 1.2.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: probe
+    attributes:
+      label: Probe output
+      description: Paste the output of `cargo run --bin subcell-probe`.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: font
+    attributes:
+      label: Font
+      description: Relevant when a glyph is missing or renders with gaps.
+      placeholder: Berkeley Mono 13pt
+
+  - type: input
+    id: version
+    attributes:
+      label: subcell version
+      placeholder: 0.0.1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: muxer
+    attributes:
+      label: Environment
+      options:
+        - label: Running inside tmux or screen
+        - label: Running over SSH

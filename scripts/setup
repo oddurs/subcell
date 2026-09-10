@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run once after cloning. Idempotent.
+set -eu
+cd "$(dirname "$0")/.."
+
+printf 'Pointing git at the tracked hooks... '
+git config core.hooksPath .githooks
+chmod +x .githooks/* scripts/* 2>/dev/null || true
+printf 'done\n'
+
+printf 'Toolchain: '
+rustc --version
+
+printf '\nSetup complete. Next: scripts/agent doctor\n'

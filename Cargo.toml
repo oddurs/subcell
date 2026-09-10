@@ -1,0 +1,42 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/oddurs/subcell"
+homepage = "https://github.com/oddurs/subcell"
+authors = ["Oddur Sigurdsson <oddurs@gmail.com>"]
+keywords = ["tui", "terminal", "rendering", "rasterizer", "kitty"]
+categories = ["command-line-interface", "graphics", "rendering"]
+
+[workspace.dependencies]
+subcell-blit = { version = "0.0.1", path = "crates/subcell-blit" }
+subcell-caps = { version = "0.0.1", path = "crates/subcell-caps" }
+subcell-chan = { version = "0.0.1", path = "crates/subcell-chan" }
+subcell-color = { version = "0.0.1", path = "crates/subcell-color" }
+subcell-cov = { version = "0.0.1", path = "crates/subcell-cov" }
+subcell-in = { version = "0.0.1", path = "crates/subcell-in" }
+subcell-px = { version = "0.0.1", path = "crates/subcell-px" }
+subcell-scene = { version = "0.0.1", path = "crates/subcell-scene" }
+
+[workspace.lints.rust]
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+unsafe_code = "forbid"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+must_use_candidate = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,160 @@
+#!/bin/sh
+# One unit of work, one worktree, one branch, one PR.
+#
+# Parallel agents must never share a checkout: two tasks in one working tree
+# fight over the index and the target directory. Every command here is
+# idempotent, says what it is about to do, and fails loudly.
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+REPO=$(basename "$ROOT")
+WORKTREES="$(dirname "$ROOT")/.worktrees/$REPO"
+BRANCH_RE='^(feat|fix|chore|docs|perf|refactor|test)/[a-z0-9][a-z0-9._-]*$'
+
+die() { printf 'agent: %s\n' "$*" >&2; exit 1; }
+say() { printf '\033[36m→\033[0m %s\n' "$*"; }
+ok()  { printf '\033[32m✓\033[0m %s\n' "$*"; }
+bad() { printf '\033[31m✗\033[0m %s\n' "$*"; }
+
+default_branch() {
+    git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null \
+        | sed 's|^origin/||' \
+        || git -C "$ROOT" config --get init.defaultBranch \
+        || echo main
+}
+
+cmd_doctor() {
+    problems=0
+    for tool in git gh cargo rustc; do
+        if command -v "$tool" >/dev/null 2>&1; then ok "$tool present"
+        else bad "$tool not found"; problems=$((problems + 1)); fi
+    done
+
+    if gh auth status >/dev/null 2>&1; then ok "gh authenticated"
+    else bad "gh not authenticated — run: gh auth login"; problems=$((problems + 1)); fi
+
+    hooks=$(git -C "$ROOT" config --get core.hooksPath || echo "")
+    if [ "$hooks" = ".githooks" ]; then ok "hooks wired to .githooks"
+    else bad "core.hooksPath is '$hooks' — run: scripts/setup"; problems=$((problems + 1)); fi
+
+    for h in commit-msg pre-commit pre-push; do
+        if [ -x "$ROOT/.githooks/$h" ]; then ok "hook $h executable"
+        else bad "hook $h missing or not executable"; problems=$((problems + 1)); fi
+    done
+
+    if [ -z "$(git -C "$ROOT" status --porcelain)" ]; then ok "working tree clean"
+    else bad "working tree dirty"; problems=$((problems + 1)); fi
+
+    ok "default branch: $(default_branch)"
+
+    [ "$problems" -eq 0 ] || die "$problems problem(s) found"
+    printf '\nAll good.\n'
+}
+
+cmd_start() {
+    branch=${1:-}
+    [ -n "$branch" ] || die "usage: agent start <type>/<slug>"
+    echo "$branch" | grep -Eq "$BRANCH_RE" \
+        || die "branch must match $BRANCH_RE (e.g. feat/octant-table)"
+
+    dir="$WORKTREES/$(echo "$branch" | tr '/' '-')"
+    [ -e "$dir" ] && die "worktree already exists: $dir"
+    git -C "$ROOT" show-ref --quiet "refs/heads/$branch" && die "branch already exists: $branch"
+
+    base=$(default_branch)
+    say "fetching origin"
+    git -C "$ROOT" fetch --quiet origin
+
+    say "creating $branch from origin/$base"
+    mkdir -p "$WORKTREES"
+    git -C "$ROOT" worktree add -b "$branch" "$dir" "origin/$base" >/dev/null
+
+    ok "worktree ready"
+    printf '\n  cd %s\n\n' "$dir"
+}
+
+cmd_check() { "$ROOT/scripts/task" check; }
+
+cmd_commit() {
+    [ $# -ge 1 ] || die "usage: agent commit <message>"
+    git commit -m "$*"
+}
+
+cmd_pr() {
+    draft=""
+    [ "${1:-}" = "--draft" ] && draft="--draft"
+
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    [ "$branch" != "$(default_branch)" ] || die "refusing to open a PR from the default branch"
+
+    say "running checks before pushing"
+    "$ROOT/scripts/task" check
+
+    say "pushing $branch"
+    git push -u origin "$branch"
+
+    say "opening pull request"
+    # shellcheck disable=SC2086
+    gh pr create --fill $draft
+    gh pr view --json url --jq .url
+}
+
+cmd_sync() {
+    base=$(default_branch)
+    say "rebasing onto origin/$base"
+    git fetch --quiet origin
+    git rebase "origin/$base"
+    ok "up to date"
+}
+
+cmd_done() {
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    [ -n "$branch" ] || die "not in a git worktree"
+    [ "$branch" != "$(default_branch)" ] || die "run this from the branch's worktree"
+
+    state=$(gh pr view "$branch" --json state --jq .state 2>/dev/null || echo "NONE")
+    [ "$state" = "MERGED" ] || die "PR for $branch is $state, not MERGED"
+
+    dir=$(git rev-parse --show-toplevel)
+    say "removing worktree $dir"
+    cd "$ROOT"
+    git worktree remove "$dir" --force
+    git branch -D "$branch" >/dev/null 2>&1 || true
+    git worktree prune
+    git fetch --prune --quiet origin
+    ok "cleaned up $branch"
+}
+
+cmd_list() {
+    git -C "$ROOT" worktree list --porcelain | awk '
+        /^worktree /  { dir = substr($0, 10) }
+        /^branch /    { br = substr($0, 8); sub("refs/heads/", "", br);
+                        printf "%-28s %s\n", br, dir }
+    '
+}
+
+case "${1:-}" in
+    doctor) shift; cmd_doctor "$@" ;;
+    start)  shift; cmd_start "$@" ;;
+    check)  shift; cmd_check "$@" ;;
+    commit) shift; cmd_commit "$@" ;;
+    pr)     shift; cmd_pr "$@" ;;
+    sync)   shift; cmd_sync "$@" ;;
+    done)   shift; cmd_done "$@" ;;
+    list)   shift; cmd_list "$@" ;;
+    *)
+        cat <<'USAGE'
+usage: scripts/agent <command>
+
+  doctor              check the environment and report every problem
+  start <type>/<slug> create a branch and its own worktree
+  check               format, lint and test
+  commit <message>    commit, with the message validated
+  pr [--draft]        check, push, open a pull request
+  sync                rebase onto the default branch
+  done                confirm merged, then remove worktree and branch
+  list                worktrees and their branches
+USAGE
+        [ -n "${1:-}" ] && exit 2 || exit 0
+        ;;
+esac
