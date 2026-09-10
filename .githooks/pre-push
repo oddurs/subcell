@@ -3,7 +3,14 @@
 set -eu
 root=$(git rev-parse --show-toplevel)
 
-default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || echo main)
+# A pipeline's exit status is the *last* command's, so `... | sed || echo main`
+# never falls back — sed succeeds on empty input. Resolve step by step instead.
+default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || default=""
+default=${default#origin/}
+if [ -z "$default" ]; then
+    default=$(git config --get init.defaultBranch 2>/dev/null) || default=""
+fi
+[ -n "$default" ] || default=main
 
 while read -r local_ref _ remote_ref _; do
     [ -z "${remote_ref:-}" ] && continue

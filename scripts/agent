@@ -17,10 +17,15 @@ ok()  { printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { printf '\033[31m✗\033[0m %s\n' "$*"; }
 
 default_branch() {
-    git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null \
-        | sed 's|^origin/||' \
-        || git -C "$ROOT" config --get init.defaultBranch \
-        || echo main
+    # A pipeline's exit status is the last command's, so piping into sed and
+    # then falling back with `||` never fires. Resolve one step at a time.
+    b=$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || b=""
+    b=${b#origin/}
+    if [ -z "$b" ]; then
+        b=$(git -C "$ROOT" config --get init.defaultBranch 2>/dev/null) || b=""
+    fi
+    [ -n "$b" ] || b=main
+    printf '%s\n' "$b"
 }
 
 cmd_doctor() {
