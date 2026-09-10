@@ -16,6 +16,13 @@ say() { printf '\033[36m→\033[0m %s\n' "$*"; }
 ok()  { printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { printf '\033[31m✗\033[0m %s\n' "$*"; }
 
+# ROOT is derived from this script's own path, so inside a worktree it *is* the
+# worktree. `done` must not cd there before deleting it — resolve the primary
+# checkout from git instead, which always lists it first.
+primary_root() {
+    git worktree list --porcelain | awk '/^worktree /{ print substr($0, 10); exit }'
+}
+
 default_branch() {
     # A pipeline's exit status is the last command's, so piping into sed and
     # then falling back with `||` never fires. Resolve one step at a time.
@@ -121,10 +128,15 @@ cmd_done() {
     [ "$state" = "MERGED" ] || die "PR for $branch is $state, not MERGED"
 
     dir=$(git rev-parse --show-toplevel)
+    primary=$(primary_root)
+    [ -n "$primary" ] || die "could not locate the primary checkout"
+
     say "removing worktree $dir"
-    cd "$ROOT"
+    cd "$primary"
     git worktree remove "$dir" --force
-    git branch -D "$branch" >/dev/null 2>&1 || true
+    if git show-ref --quiet "refs/heads/$branch"; then
+        git branch -D "$branch" >/dev/null
+    fi
     git worktree prune
     git fetch --prune --quiet origin
     ok "cleaned up $branch"
